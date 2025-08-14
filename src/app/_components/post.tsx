@@ -24,7 +24,7 @@ export function LatestPost() {
         <p>You have no posts yet.</p>
       )}
       <form
-        onSubmit={(e) => {
+        onSubmit={e => {
           e.preventDefault();
           createPost.mutate({ name });
         }}
@@ -34,7 +34,7 @@ export function LatestPost() {
           type="text"
           placeholder="Title"
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={e => setName(e.target.value)}
           className="w-full rounded-full bg-white/10 px-4 py-2 text-white"
         />
         <button

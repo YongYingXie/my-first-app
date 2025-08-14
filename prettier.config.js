@@ -24,6 +24,4 @@ export default {
   arrowParens: "avoid",
   // 行尾换行符
   endOfLine: "lf",
-  // 忽略某些文件
-  ignorePath: ".prettierignore",
 };
