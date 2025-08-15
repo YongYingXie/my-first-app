@@ -1,4 +1,4 @@
-import { Memo } from "~/app/_components/memo";
+import { Memo } from '~/app/_components/memo';
 
 export default function Home() {
   return <Memo />;
