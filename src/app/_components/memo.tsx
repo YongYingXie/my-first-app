@@ -1,91 +1,40 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-
-interface TodoItem {
-  id: number;
-  text: string;
-  createdAt: Date;
-  isCompleted: boolean;
-}
+import { useMemo } from "react";
+import { useMemoStore } from "../../stores/memoStore";
 
 export function Memo() {
-  const [todos, setTodos] = useState<TodoItem[]>([]);
-  const [inputText, setInputText] = useState('');
-  const [filter, setFilter] = useState<'all' | 'active' | 'isCompleted'>('all');
+  const {
+    todos,
+    inputText,
+    filter,
+    setInputText,
+    setFilter,
+    addTodo,
+    toggleTodo,
+    deleteTodo
+  } = useMemoStore();
 
-  const STORAGE_KEY = 'memo.todos';
-  const INPUT_KEY = 'memo.inputText';
+  const filteredTodos = useMemo(() => {
+    switch (filter) {
+      case "active":
+        return todos.filter((todo) => !todo.isCompleted);
+      case "isCompleted":
+        return todos.filter((todo) => todo.isCompleted);
+      default:
+        return todos;
+    }
+  }, [todos, filter]);
 
-  // 首次加载时读本地存储，把字符串日期转回Date
-  useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const parsed = JSON.parse(raw) as Array<{
-      id: number;
-      text: string;
-      createdAt: string;
-      isCompleted: boolean;
-    }>;
-    setTodos(
-      parsed.map((t) => ({
-        ...t,
-        createdAt: new Date(t.createdAt),
-      }))
-    );
-  }, []);
-
-  // todos变化时候写本地存储，把Date转为ISO字符串
-  useEffect(() => {
-    const serializable = todos.map((t) => ({
-      ...t,
-      createdAt: t.createdAt.toISOString(),
-    }));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
+  // 计算待完成的数量
+  const activeCount = useMemo(() => {
+    return todos.filter((todo) => !todo.isCompleted).length;
   }, [todos]);
 
-  useEffect(() => {
-    const saved = localStorage.getItem(INPUT_KEY);
-    if (saved !== null) setInputText(saved);
-  }, []);
-
-  useEffect(() => {
-    if (inputText) {
-      localStorage.setItem(INPUT_KEY, inputText);
-    } else {
-      localStorage.removeItem(INPUT_KEY);
-    }
-  }, [inputText]);
-
-  const addTodo = () => {
-    if (inputText.trim()) {
-      const newTodo: TodoItem = {
-        id: Date.now(),
-        text: inputText.trim(),
-        createdAt: new Date(),
-        isCompleted: false,
-      };
-      setTodos([...todos, newTodo]);
-      setInputText('');
-    }
-  };
-
-  const toggleTodo = (id: number) => {
-    setTodos(
-      todos.map((todo) => (todo.id === id ? { ...todo, isCompleted: !todo.isCompleted } : todo))
-    );
-  };
-
-  const deleteTodo = (id: number) => {
-    setTodos(todos.filter((todo) => todo.id !== id));
-  };
-
-  const filteredTodos =
-    filter === 'all'
-      ? todos
-      : filter === 'active'
-        ? todos.filter((t) => !t.isCompleted)
-        : todos.filter((t) => t.isCompleted);
+  // 计算已完成的数量
+  const completedCount = useMemo(() => {
+    return todos.filter((todo) => todo.isCompleted).length;
+  }, [todos]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
@@ -102,7 +51,7 @@ export function Memo() {
               className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-700 placeholder-gray-400"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addTodo()}
+              onKeyDown={(e) => e.key === "Enter" && addTodo()}
             />
             <button
               className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200"
@@ -114,37 +63,37 @@ export function Memo() {
           </div>
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <button
-              onClick={() => setFilter('all')}
+              onClick={() => setFilter("all")}
               className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors
                 ${
-                  filter === 'all'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  filter === "all"
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                 }`}
             >
               全部 ({todos.length})
             </button>
             <button
-              onClick={() => setFilter('active')}
+              onClick={() => setFilter("active")}
               className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors
                 ${
-                  filter === 'active'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  filter === "active"
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                 }`}
             >
-              待完成 ({todos.filter((t) => !t.isCompleted).length})
+              待完成 {activeCount}
             </button>
             <button
-              onClick={() => setFilter('isCompleted')}
+              onClick={() => setFilter("isCompleted")}
               className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors
                 ${
-                  filter === 'isCompleted'
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                  filter === "isCompleted"
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                 }`}
             >
-              已完成 ({todos.filter((t) => t.isCompleted).length})
+              已完成 {completedCount}
             </button>
           </div>
           <div className="space-y-4">
@@ -157,7 +106,7 @@ export function Memo() {
               filteredTodos.map((todo) => (
                 <div
                   key={todo.id}
-                  className={`bg-white rounded-lg shadow-md p-6 transition-all duration-200 hover:shadow-lg ${todo.isCompleted ? 'opacity-75' : ''}`}
+                  className={`bg-white rounded-lg shadow-md p-6 transition-all duration-200 hover:shadow-lg ${todo.isCompleted ? "opacity-75" : ""}`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-4 flex-1">
@@ -165,18 +114,18 @@ export function Memo() {
                         type="button"
                         onClick={() => toggleTodo(todo.id)}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
+                          if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
                             toggleTodo(todo.id);
                           }
                         }}
                         role="checkbox"
                         aria-checked={todo.isCompleted}
-                        aria-label={todo.isCompleted ? '标记为未完成' : '标记为已完成'}
+                        aria-label={todo.isCompleted ? "标记为未完成" : "标记为已完成"}
                         className={`mt-1 grid place-items-center w-5 h-5 rounded-full border-2 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                           todo.isCompleted
-                            ? 'bg-green-600 border-green-600'
-                            : 'border-gray-300 hover:border-gray-400'
+                            ? "bg-green-600 border-green-600"
+                            : "border-gray-300 hover:border-gray-400"
                         }`}
                       >
                         {todo.isCompleted && (
@@ -196,12 +145,12 @@ export function Memo() {
                       </button>
                       <div className="flex-1">
                         <p
-                          className={`text-lg text-gray-800 ${todo.isCompleted ? 'line-through text-gray-500' : ''}`}
+                          className={`text-lg text-gray-800 ${todo.isCompleted ? "line-through text-gray-500" : ""}`}
                         >
                           {todo.text}
                         </p>
                         <p className="text-sm text-gray-500 mt-1">
-                          创建时间：{todo.createdAt.toLocaleString('zh-CN')}
+                          创建时间：{todo.createdAt.toLocaleString("zh-CN")}
                         </p>
                       </div>
                     </div>
@@ -236,13 +185,13 @@ export function Memo() {
                   </div>
                   <div className="p-4 bg-green-50 rounded-lg">
                     <div className="text-2xl font-bold text-green-600">
-                      {todos.filter((t) => t.isCompleted).length}
+                      {activeCount}
                     </div>
                     <div className="text-sm text-green-500">已完成</div>
                   </div>
                   <div className="p-4 bg-orange-50 rounded-lg">
                     <div className="text-2xl font-bold text-orange-600">
-                      {todos.filter((t) => !t.isCompleted).length}
+                      {completedCount}
                     </div>
                     <div className="text-sm text-orange-500">待完成</div>
                   </div>
