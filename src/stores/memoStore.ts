@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { api } from '~/trpc/react';
 
 interface TodoItem {
   id: string;
@@ -17,22 +16,18 @@ interface MemoStore {
 
   setInputText: (text: string) => void;
   setFilter: (filter: 'all' | 'active' | 'isCompleted') => void;
-
-  // 本地操作（立即更新UI）
-  addTodo: () => void;
-  toggleTodo: (id: string) => void;
-  deleteTodo: (id: string) => void;
-
-  // 同步操作（与后端同步）
-  syncTodos: () => Promise<void>;
-  syncAddTodo: (text: string) => Promise<void>;
-  syncToggleTodo: (id: string) => Promise<void>;
-  syncDeleteTodo: (id: string) => Promise<void>;
+  
+  // 同步操作 - 等待后端响应后再更新前端状态
+  setTodos: (todos: TodoItem[]) => void;
+  addTodo: (todo: TodoItem) => void;
+  updateTodo: (id: string, updates: Partial<TodoItem>) => void;
+  removeTodo: (id: string) => void;
+  setLoading: (loading: boolean) => void;
 }
 
 export const useMemoStore = create<MemoStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       todos: [],
       inputText: '',
       filter: 'all',
@@ -40,93 +35,21 @@ export const useMemoStore = create<MemoStore>()(
 
       setInputText: (text: string) => set({ inputText: text }),
       setFilter: (filter: 'all' | 'active' | 'isCompleted') => set({ filter }),
-
-      // 本地操作 - 立即更新UI
-      addTodo: () => {
-        const { inputText, todos } = get();
-        if (inputText.trim()) {
-          const newTodo: TodoItem = {
-            id: `temp-${Date.now()}`, // 临时ID
-            text: inputText.trim(),
-            createdAt: new Date(),
-            isCompleted: false,
-          };
-          set((state) => ({
-            todos: [...state.todos, newTodo],
-            inputText: '',
-          }));
-        }
-      },
-
-      toggleTodo: (id: string) => {
-        const { todos } = get();
-        set({
-          todos: todos.map((todo) =>
-            todo.id === id ? { ...todo, isCompleted: !todo.isCompleted } : todo
+      
+      // 同步操作 - 直接更新状态，不涉及API调用
+      setTodos: (todos: TodoItem[]) => set({ todos }),
+      addTodo: (todo: TodoItem) => set((state) => ({ todos: [...state.todos, todo] })),
+      updateTodo: (id: string, updates: Partial<TodoItem>) =>
+        set((state) => ({
+          todos: state.todos.map((todo) =>
+            todo.id === id ? { ...todo, ...updates } : todo
           ),
-        });
-      },
-
-      deleteTodo: (id: string) => {
-        const { todos } = get();
-        set({
-          todos: todos.filter((todo) => todo.id !== id),
-        });
-      },
-
-      // 同步操作 - 与后端API同步
-      syncTodos: async () => {
-        set({ isLoading: true });
-        try {
-          // 这里我们需要在组件中调用，因为hooks不能在store中直接使用
-          // 我们会在组件中实现这个逻辑
-        } catch (error) {
-          console.error('Failed to sync todos:', error);
-        } finally {
-          set({ isLoading: false });
-        }
-      },
-
-      syncAddTodo: async (text: string) => {
-        const { todos } = get();
-        if (text.trim()) {
-          try {
-            // 在组件中调用API
-            // 成功后更新本地状态
-            const newTodo: TodoItem = {
-              id: `temp-${Date.now()}`,
-              text: text.trim(),
-              createdAt: new Date(),
-              isCompleted: false,
-            };
-            set((state) => ({
-              todos: [...state.todos, newTodo],
-              inputText: '',
-            }));
-          } catch (error) {
-            console.error('Failed to add todo:', error);
-          }
-        }
-      },
-
-      syncToggleTodo: async (id: string) => {
-        const { todos } = get();
-        const todo = todos.find((t) => t.id === id);
-        if (todo) {
-          // 乐观更新
-          set({
-            todos: todos.map((t) => (t.id === id ? { ...t, isCompleted: !t.isCompleted } : t)),
-          });
-        }
-      },
-
-      syncDeleteTodo: async (id: string) => {
-        const { todos } = get();
-        // 乐观删除
-        set({
-          todos: todos.filter((todo) => todo.id !== id),
-        });
-      },
+        })),
+      removeTodo: (id: string) =>
+        set((state) => ({
+          todos: state.todos.filter((todo) => todo.id !== id),
+        })),
+      setLoading: (loading: boolean) => set({ isLoading: loading }),
     }),
     {
       name: 'memo-store',
