@@ -5,49 +5,81 @@ import { api } from '~/trpc/react';
 import { useMemoStore } from '../../stores/memoStore';
 
 export function Memo() {
-  const { todos, inputText, filter, setInputText, setFilter, addTodo, toggleTodo, deleteTodo } =
-    useMemoStore();
+  const { 
+    todos, 
+    inputText, 
+    filter, 
+    setInputText, 
+    setFilter, 
+    setTodos, 
+    addTodo, 
+    updateTodo, 
+    removeTodo,
+    setLoading 
+  } = useMemoStore();
 
   // 获取后端数据
-  const { data: serverTodos = [], refetch } = api.todo.getAll.useQuery();
+  const { data: serverTodos = [], refetch, isLoading: isFetching } = api.todo.getAll.useQuery();
+  
   const createTodoMutation = api.todo.create.useMutation({
-    onSuccess: () => {
-      refetch();
+    onSuccess: (newTodo) => {
+      // 后端创建成功后，将新todo添加到前端状态
+      const formattedTodo = {
+        id: newTodo.id,
+        text: newTodo.text,
+        createdAt: new Date(newTodo.createdAt),
+        isCompleted: newTodo.isCompleted,
+      };
+      addTodo(formattedTodo);
+      setInputText(''); // 清空输入框
     },
-  });
-  const toggleTodoMutation = api.todo.toggle.useMutation({
-    onSuccess: () => {
-      refetch();
-    },
-  });
-  const deleteTodoMutation = api.todo.delete.useMutation({
-    onSuccess: () => {
-      refetch();
+    onError: (error) => {
+      console.error('Failed to create todo:', error);
+      // 可以在这里添加错误提示UI
     },
   });
 
-  // 同步后端数据到本地状态（仅在组件挂载时）
+  const toggleTodoMutation = api.todo.toggle.useMutation({
+    onSuccess: (updatedTodo) => {
+      // 后端更新成功后，更新前端状态
+      updateTodo(updatedTodo.id, {
+        isCompleted: updatedTodo.isCompleted,
+      });
+    },
+    onError: (error) => {
+      console.error('Failed to toggle todo:', error);
+      // 可以在这里添加错误提示UI
+    },
+  });
+
+  const deleteTodoMutation = api.todo.delete.useMutation({
+    onSuccess: (_, variables) => {
+      // 后端删除成功后，从前端状态中移除
+      removeTodo(variables.id);
+    },
+    onError: (error) => {
+      console.error('Failed to delete todo:', error);
+      // 可以在这里添加错误提示UI
+    },
+  });
+
+  // 同步后端数据到前端状态
   useEffect(() => {
     if (serverTodos.length > 0) {
-      // 将服务器数据转换为本地格式并合并
       const serverTodosFormatted = serverTodos.map((todo) => ({
         id: todo.id,
         text: todo.text,
         createdAt: new Date(todo.createdAt),
         isCompleted: todo.isCompleted,
       }));
-
-      // 合并本地和服务器数据，避免重复
-      const existingIds = new Set(todos.map((t) => t.id));
-      const newTodos = serverTodosFormatted.filter((t) => !existingIds.has(t.id));
-
-      if (newTodos.length > 0) {
-        // 这里我们需要在 store 中添加一个方法来合并数据
-        // 暂时先直接使用服务器数据
-        useMemoStore.setState({ todos: serverTodosFormatted });
-      }
+      setTodos(serverTodosFormatted);
     }
-  }, [serverTodos]);
+  }, [serverTodos, setTodos]);
+
+  // 设置加载状态
+  useEffect(() => {
+    setLoading(isFetching);
+  }, [isFetching, setLoading]);
 
   const filteredTodos = useMemo(() => {
     switch (filter) {
@@ -70,46 +102,38 @@ export function Memo() {
     return todos.filter((todo) => todo.isCompleted).length;
   }, [todos]);
 
-  // 增强的添加 Todo 函数
+  // 添加 Todo 函数 - 等待后端响应
   const handleAddTodo = async () => {
     if (inputText.trim()) {
-      // 先添加到本地状态（乐观更新）
-      addTodo();
-
-      // 同步到后端
       try {
+        // 等待后端创建成功后再更新前端状态
         await createTodoMutation.mutateAsync({ text: inputText.trim() });
       } catch (error) {
-        console.error('Failed to sync todo to server:', error);
-        // 如果后端同步失败，可以在这里添加错误提示
-        // 或者回滚本地状态
+        // 错误已在 mutation 的 onError 中处理
+        console.error('Failed to add todo:', error);
       }
     }
   };
 
-  // 增强的切换 Todo 状态函数
-  // 修改函数参数类型
+  // 切换 Todo 状态函数 - 等待后端响应
   const handleToggleTodo = async (id: string) => {
-    // 先更新本地状态
-    toggleTodo(id); // 直接传递 string
-
-    // 同步到后端
     try {
+      // 等待后端更新成功后再更新前端状态
       await toggleTodoMutation.mutateAsync({ id });
     } catch (error) {
-      console.error('Failed to sync todo toggle to server:', error);
+      // 错误已在 mutation 的 onError 中处理
+      console.error('Failed to toggle todo:', error);
     }
   };
 
+  // 删除 Todo 函数 - 等待后端响应
   const handleDeleteTodo = async (id: string) => {
-    // 先从本地状态删除
-    deleteTodo(id); // 直接传递 string
-
-    // 同步到后端
     try {
+      // 等待后端删除成功后再更新前端状态
       await deleteTodoMutation.mutateAsync({ id });
     } catch (error) {
-      console.error('Failed to sync todo deletion to server:', error);
+      // 错误已在 mutation 的 onError 中处理
+      console.error('Failed to delete todo:', error);
     }
   };
 
@@ -174,6 +198,14 @@ export function Memo() {
               已完成 {completedCount}
             </button>
           </div>
+          
+          {/* 加载状态指示器 */}
+          {isFetching && (
+            <div className="text-center py-4 text-blue-600">
+              正在同步数据...
+            </div>
+          )}
+          
           <div className="space-y-4">
             {filteredTodos.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
