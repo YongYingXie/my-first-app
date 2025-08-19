@@ -10,6 +10,7 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import superjson from 'superjson';
 import { ZodError } from 'zod';
+import { auth } from '~/lib/auth';
 
 import { db } from '~/server/db';
 
@@ -26,8 +27,11 @@ import { db } from '~/server/db';
  * @see https://trpc.io/docs/server/context
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
+  const session = await auth();
+
   return {
     db,
+    session,
     ...opts,
   };
 };
@@ -109,9 +113,20 @@ export const publicProcedure = t.procedure.use(timingMiddleware);
 /**
  * Protected (authenticated) procedure
  *
- * This is now a placeholder since authentication has been removed.
- * You can implement your own authentication logic here if needed.
+ * This is the base piece you use to build new queries and mutations on your tRPC API. It guarantees
+ * that a user querying is authorized, and this `session` object is populated with the user's session
+ * data.
  *
  * @see https://trpc.io/docs/procedures
  */
-export const protectedProcedure = t.procedure.use(timingMiddleware);
+export const protectedProcedure = t.procedure.use(timingMiddleware).use(async ({ ctx, next }) => {
+  if (!ctx.session || !ctx.session.user) {
+    throw new TRPCError({ code: 'UNAUTHORIZED' });
+  }
+  return next({
+    ctx: {
+      ...ctx,
+      session: ctx.session,
+    },
+  });
+});

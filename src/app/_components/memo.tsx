@@ -1,26 +1,31 @@
 'use client';
 
+import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { useEffect, useMemo } from 'react';
 import { api } from '~/trpc/react';
 import { useMemoStore } from '../../stores/memoStore';
 
 export function Memo() {
-  const { 
-    todos, 
-    inputText, 
-    filter, 
-    setInputText, 
-    setFilter, 
-    setTodos, 
-    addTodo, 
-    updateTodo, 
+  const { data: session, status } = useSession();
+  const {
+    todos,
+    inputText,
+    filter,
+    setInputText,
+    setFilter,
+    setTodos,
+    addTodo,
+    updateTodo,
     removeTodo,
-    setLoading 
+    setLoading,
   } = useMemoStore();
 
   // 获取后端数据
-  const { data: serverTodos = [], refetch, isLoading: isFetching } = api.todo.getAll.useQuery();
-  
+  const { data: serverTodos = [], isLoading: isFetching } = api.todo.getAll.useQuery(undefined, {
+    enabled: !!session?.user, // 只有登录用户才能获取数据
+  });
+
   const createTodoMutation = api.todo.create.useMutation({
     onSuccess: (newTodo) => {
       // 后端创建成功后，将新todo添加到前端状态
@@ -48,7 +53,7 @@ export function Memo() {
     },
     onError: (error) => {
       console.error('Failed to toggle todo:', error);
-      // 可以在这里添加错误提示UI
+      // 错误已在 mutation 的 onError 中处理
     },
   });
 
@@ -59,7 +64,7 @@ export function Memo() {
     },
     onError: (error) => {
       console.error('Failed to delete todo:', error);
-      // 可以在这里添加错误提示UI
+      // 错误已在 mutation 的 onError 中处理
     },
   });
 
@@ -137,11 +142,51 @@ export function Memo() {
     }
   };
 
+  // 如果正在加载认证状态，显示加载指示器
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="text-4xl font-bold text-gray-800 mb-2">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // 如果用户未登录，显示登录提示
+  if (!session?.user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="text-4xl font-bold text-gray-800 mb-4">Welcome to My Memo</div>
+          <p className="text-gray-600 text-lg mb-8">Please sign in to manage your todo list</p>
+          <div className="flex justify-center">
+            <button
+              onClick={() => window.location.href = '/auth/signin'}
+              className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Sign In
+            </button>
+            <button
+              onClick={() => window.location.href = '/auth/signup'}
+              className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Sign Up
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-800 mb-2">My Memo</h1>
+          <p className="text-gray-600 text-lg">
+            Welcome back, {session.user.name || session.user.email}!
+          </p>
           <p className="text-gray-600 text-lg">记录你的待办事项，让生活更有条理</p>
         </div>
         <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
@@ -156,6 +201,7 @@ export function Memo() {
               disabled={createTodoMutation.isPending}
             />
             <button
+              type="button"
               className="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors duration-200 disabled:opacity-50"
               onClick={handleAddTodo}
               disabled={!inputText.trim() || createTodoMutation.isPending}
@@ -165,6 +211,7 @@ export function Memo() {
           </div>
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <button
+              type="button"
               onClick={() => setFilter('all')}
               className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors
                 ${
@@ -176,6 +223,7 @@ export function Memo() {
               全部 ({todos.length})
             </button>
             <button
+              type="button"
               onClick={() => setFilter('active')}
               className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors
                 ${
@@ -187,6 +235,7 @@ export function Memo() {
               待完成 {activeCount}
             </button>
             <button
+              type="button"
               onClick={() => setFilter('isCompleted')}
               className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors
                 ${
@@ -198,14 +247,10 @@ export function Memo() {
               已完成 {completedCount}
             </button>
           </div>
-          
+
           {/* 加载状态指示器 */}
-          {isFetching && (
-            <div className="text-center py-4 text-blue-600">
-              正在同步数据...
-            </div>
-          )}
-          
+          {isFetching && <div className="text-center py-4 text-blue-600">正在同步数据...</div>}
+
           <div className="space-y-4">
             {filteredTodos.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
@@ -222,6 +267,7 @@ export function Memo() {
                   className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                 >
                   <button
+                    type="button"
                     onClick={() => handleToggleTodo(todo.id)}
                     disabled={toggleTodoMutation.isPending}
                     className={`w-5 h-5 rounded border-2 transition-colors ${
@@ -240,6 +286,7 @@ export function Memo() {
                     {todo.text}
                   </span>
                   <button
+                    type="button"
                     onClick={() => handleDeleteTodo(todo.id)}
                     disabled={deleteTodoMutation.isPending}
                     className="text-red-500 hover:text-red-700 transition-colors p-1"
