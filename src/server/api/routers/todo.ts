@@ -1,26 +1,43 @@
 import { z } from 'zod';
-import { createTRPCRouter, publicProcedure } from '~/server/api/trpc';
+import { createTRPCRouter, protectedProcedure } from '~/server/api/trpc';
 
 export const todoRouter = createTRPCRouter({
-  getAll: publicProcedure.query(async ({ ctx }) => {
+  getAll: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.session?.user?.id) {
+      throw new Error('User not authenticated');
+    }
+    
     return await ctx.db.todo.findMany({
+      where: { userId: ctx.session.user.id },
       orderBy: { createdAt: 'desc' },
     });
   }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(z.object({ text: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
+      if (!ctx.session?.user?.id) {
+        throw new Error('User not authenticated');
+      }
+      
       return await ctx.db.todo.create({
         data: {
           text: input.text,
+          userId: ctx.session.user.id,
         },
       });
     }),
 
-  toggle: publicProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+  toggle: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    if (!ctx.session?.user?.id) {
+      throw new Error('User not authenticated');
+    }
+    
     const todo = await ctx.db.todo.findUnique({
-      where: { id: input.id },
+      where: { 
+        id: input.id,
+        userId: ctx.session.user.id, // 确保只能操作自己的todo
+      },
     });
 
     if (!todo) {
@@ -33,9 +50,16 @@ export const todoRouter = createTRPCRouter({
     });
   }),
 
-  delete: publicProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+  delete: protectedProcedure.input(z.object({ id: z.string() })).mutation(async ({ ctx, input }) => {
+    if (!ctx.session?.user?.id) {
+      throw new Error('User not authenticated');
+    }
+    
     const todo = await ctx.db.todo.findUnique({
-      where: { id: input.id },
+      where: { 
+        id: input.id,
+        userId: ctx.session.user.id, // 确保只能删除自己的todo
+      },
     });
 
     if (!todo) {

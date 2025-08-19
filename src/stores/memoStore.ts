@@ -16,7 +16,7 @@ interface MemoStore {
 
   setInputText: (text: string) => void;
   setFilter: (filter: 'all' | 'active' | 'isCompleted') => void;
-  
+
   // 同步操作 - 等待后端响应后再更新前端状态
   setTodos: (todos: TodoItem[]) => void;
   addTodo: (todo: TodoItem) => void;
@@ -35,15 +35,13 @@ export const useMemoStore = create<MemoStore>()(
 
       setInputText: (text: string) => set({ inputText: text }),
       setFilter: (filter: 'all' | 'active' | 'isCompleted') => set({ filter }),
-      
+
       // 同步操作 - 直接更新状态，不涉及API调用
       setTodos: (todos: TodoItem[]) => set({ todos }),
       addTodo: (todo: TodoItem) => set((state) => ({ todos: [...state.todos, todo] })),
       updateTodo: (id: string, updates: Partial<TodoItem>) =>
         set((state) => ({
-          todos: state.todos.map((todo) =>
-            todo.id === id ? { ...todo, ...updates } : todo
-          ),
+          todos: state.todos.map((todo) => (todo.id === id ? { ...todo, ...updates } : todo)),
         })),
       removeTodo: (id: string) =>
         set((state) => ({
