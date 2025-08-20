@@ -2,7 +2,7 @@
 
 import { Calendar, Check, Edit3, Flag, List, Plus, Search, Trash2, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';

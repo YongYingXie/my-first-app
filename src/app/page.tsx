@@ -1,5 +1,7 @@
-import Memo from '~/app/_components/memo';
+'use client';
+
+import LoginForm from '~/components/auth/login-form';
 
 export default function Home() {
-  return <Memo />;
+  return <LoginForm />;
 }
