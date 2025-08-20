@@ -1,8 +1,12 @@
 'use client';
 
-import { SessionProvider } from 'next-auth/react';
-import type { PropsWithChildren } from 'react';
+import { TRPCReactProvider } from '~/trpc/react';
+import { NextAuthProvider } from './next-auth-provider';
 
-export function NextAuthProvider({ children }: PropsWithChildren) {
-  return <SessionProvider>{children}</SessionProvider>;
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <NextAuthProvider>
+      <TRPCReactProvider>{children}</TRPCReactProvider>
+    </NextAuthProvider>
+  );
 }

@@ -22,15 +22,15 @@ export function UserMenu() {
       <div className="flex items-center gap-4">
         <Link
           href="/auth/signin"
-          className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
         >
-          Sign in
+          登录
         </Link>
         <Link
           href="/auth/signup"
           className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
         >
-          Sign up
+          注册
         </Link>
       </div>
     );
@@ -66,14 +66,14 @@ export function UserMenu() {
           <div className="px-4 py-2 border-b border-gray-100">
             <p className="text-sm text-gray-600">{user.email}</p>
           </div>
-          <div className="px-4 py-2 text-sm text-gray-500">Welcome to Todo App</div>
+          <div className="px-4 py-2 text-sm text-gray-500">欢迎来到Todo App</div>
           <div className="border-t border-gray-100">
             <button
               type="button"
               onClick={() => signOut({ callbackUrl: '/' })}
               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
             >
-              Sign out
+              登出
             </button>
           </div>
         </div>
