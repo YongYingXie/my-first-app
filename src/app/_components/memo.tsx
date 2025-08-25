@@ -1,24 +1,42 @@
 'use client';
 
-import { Calendar, Check, Edit3, Flag, List, Plus, Search, Trash2, X } from 'lucide-react';
+import {
+  Calendar,
+  Check,
+  Edit3,
+  FileText,
+  Flag,
+  List,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useState } from 'react';
+import MarkdownEditor from '~/components/markdown-editor';
+import MarkdownRenderer from '~/components/markdown-renderer';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
-import { WelcomeSuggestions } from '~/components/welcome-suggestions';
+
 import { api } from '~/trpc/react';
 
 export default function Memo() {
   const { data: session, status } = useSession();
   const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskNotes, setNewTaskNotes] = useState('');
   const [selectedList, setSelectedList] = useState('所有任务');
   const [showCompleted, setShowCompleted] = useState(true);
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [newTaskDate, setNewTaskDate] = useState<string>('');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [editingType, setEditingType] = useState<'date' | 'priority' | null>(null);
+  const [editingType, setEditingType] = useState<'title' | 'date' | 'priority' | 'notes' | null>(
+    null
+  );
+  const [editingTitle, setEditingTitle] = useState('');
+  const [editingNotes, setEditingNotes] = useState('');
   const [editingDate, setEditingDate] = useState('');
   const [editingPriority, setEditingPriority] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -85,10 +103,12 @@ export default function Memo() {
         dueDate: newTaskDate.trim() || getTodayDate(),
         priority: 'MEDIUM',
         list: '所有任务',
+        notes: newTaskNotes.trim() || undefined,
       },
       {
         onSuccess: () => {
           setNewTaskTitle('');
+          setNewTaskNotes('');
           setNewTaskDate('');
           setIsAddingTask(false);
         },
@@ -204,6 +224,72 @@ export default function Memo() {
     setEditingTaskId(null);
     setEditingType(null);
     setEditingPriority('');
+  };
+
+  const startEditTitle = (taskId: string, currentTitle: string) => {
+    setEditingTaskId(taskId);
+    setEditingType('title');
+    setEditingTitle(currentTitle);
+  };
+
+  const saveTitleEdit = (taskId: string) => {
+    if (!editingTitle.trim()) return;
+
+    updateTodo.mutate(
+      {
+        id: taskId,
+        title: editingTitle.trim(),
+      },
+      {
+        onSuccess: () => {
+          setEditingTaskId(null);
+          setEditingType(null);
+          setEditingTitle('');
+        },
+        onError: (error) => {
+          console.error('更新标题失败:', error);
+          alert('更新失败，请重试');
+        },
+      }
+    );
+  };
+
+  const cancelTitleEdit = () => {
+    setEditingTaskId(null);
+    setEditingType(null);
+    setEditingTitle('');
+  };
+
+  const startEditNotes = (taskId: string, currentNotes: string | null) => {
+    setEditingTaskId(taskId);
+    setEditingType('notes');
+    setEditingNotes(currentNotes || '');
+  };
+
+  const saveNotesEdit = (taskId: string) => {
+    updateTodo.mutate(
+      {
+        id: taskId,
+        notes: editingNotes.trim() || null,
+      },
+      {
+        onSuccess: () => {
+          setEditingTaskId(null);
+          setEditingType(null);
+          setEditingNotes('');
+        },
+        onError: (error) => {
+          console.error('更新备注失败:', error);
+          alert('更新失败，请重试');
+        },
+      }
+    );
+  };
+
+  const cancelNotesEdit = () => {
+    setEditingTaskId(null);
+    setEditingType(null);
+    setEditingNotes('');
   };
 
   const getPriorityLabel = (priority: string) => {
@@ -407,6 +493,17 @@ export default function Memo() {
                       placeholder="选择日期（可选）"
                     />
                   </div>
+
+                  {/* Markdown编辑器 */}
+                  <div className="mb-3">
+                    <MarkdownEditor
+                      value={newTaskNotes}
+                      onChange={setNewTaskNotes}
+                      placeholder="添加任务备注（支持Markdown格式）..."
+                      label="任务备注"
+                    />
+                  </div>
+
                   <div className="flex gap-2">
                     <Button onClick={addTask} size="sm">
                       添加任务
@@ -417,6 +514,7 @@ export default function Memo() {
                       onClick={() => {
                         setIsAddingTask(false);
                         setNewTaskTitle('');
+                        setNewTaskNotes('');
                         setNewTaskDate('');
                       }}
                     >
@@ -453,13 +551,50 @@ export default function Memo() {
                       {/* 任务内容 */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span
-                            className={`text-sm font-medium ${
-                              task.completed ? 'line-through text-gray-500' : 'text-gray-900'
-                            }`}
-                          >
-                            {task.title}
-                          </span>
+                          {editingTaskId === task.id && editingType === 'title' ? (
+                            <div className="flex items-center gap-2 flex-1">
+                              <Input
+                                value={editingTitle}
+                                onChange={(e) => setEditingTitle(e.target.value)}
+                                className="flex-1 h-6 text-sm"
+                                onKeyPress={(e) => e.key === 'Enter' && saveTitleEdit(task.id)}
+                                onKeyDown={(e) => e.key === 'Escape' && cancelTitleEdit()}
+                                autoFocus
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => saveTitleEdit(task.id)}
+                                className="h-6 w-6 p-0 text-green-600 hover:text-green-700"
+                              >
+                                <Check className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={cancelTitleEdit}
+                                className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className={`text-sm font-medium cursor-pointer hover:text-blue-600 transition-colors text-left ${
+                                task.completed ? 'line-through text-gray-500' : 'text-gray-900'
+                              }`}
+                              onClick={() => startEditTitle(task.id, task.title)}
+                              onKeyDown={(e) =>
+                                e.key === 'Enter' && startEditTitle(task.id, task.title)
+                              }
+                              title="点击编辑任务标题"
+                            >
+                              {task.title}
+                            </button>
+                          )}
                           {task.priority === 'HIGH' && (
                             <div className="w-3 h-3 bg-red-600 rounded-full"></div>
                           )}
@@ -467,7 +602,7 @@ export default function Memo() {
                             <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
                           )}
                           {task.priority === 'LOW' && (
-                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                            <div className="w-3 h-3 bg-green-600 rounded-full"></div>
                           )}
                         </div>
 
@@ -601,6 +736,76 @@ export default function Memo() {
                             </div>
                           )}
                         </div>
+
+                        {/* 任务备注显示和编辑 */}
+                        {task.notes && (
+                          <div className="mt-2">
+                            {editingTaskId === task.id && editingType === 'notes' ? (
+                              <div className="space-y-2">
+                                <MarkdownEditor
+                                  value={editingNotes}
+                                  onChange={setEditingNotes}
+                                  placeholder="编辑任务备注..."
+                                  label="编辑备注"
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => saveNotesEdit(task.id)}
+                                    className="text-green-600 hover:text-green-700"
+                                  >
+                                    <Check className="w-3 h-3 mr-1" />
+                                    保存
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={cancelNotesEdit}
+                                    className="text-red-600 hover:text-red-700"
+                                  >
+                                    <X className="w-3 h-3 mr-1" />
+                                    取消
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="group relative">
+                                <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded border">
+                                  <MarkdownRenderer content={task.notes} />
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => startEditNotes(task.id, task.notes)}
+                                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 p-0 text-gray-400 hover:text-gray-600"
+                                  title="编辑备注"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* 添加备注按钮（如果没有备注） */}
+                        {!task.notes && (
+                          <div className="mt-2">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => startEditNotes(task.id, '')}
+                              className="h-6 px-2 text-xs text-gray-400 hover:text-gray-600 border border-dashed border-gray-300 hover:border-gray-400"
+                            >
+                              <FileText className="w-3 h-3 mr-1" />
+                              添加备注
+                            </Button>
+                          </div>
+                        )}
                       </div>
 
                       {/* 操作按钮 */}
@@ -636,7 +841,9 @@ export default function Memo() {
               {/* 空状态 */}
               {visibleTasks.length === 0 && (
                 <div className="flex-1 flex items-center justify-center">
-                  <WelcomeSuggestions />
+                  <div className="text-center text-gray-500">
+                    <p>暂无任务</p>
+                  </div>
                 </div>
               )}
             </Card>
