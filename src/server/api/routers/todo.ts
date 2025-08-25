@@ -22,6 +22,7 @@ export const todoRouter = createTRPCRouter({
         dueDate: z.string().optional(),
         priority: priorityEnum.optional(),
         list: z.string().optional(),
+        notes: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -35,6 +36,7 @@ export const todoRouter = createTRPCRouter({
           dueDate: input.dueDate ? new Date(input.dueDate) : null,
           priority: input.priority || 'MEDIUM',
           list: input.list || '所有任务',
+          notes: input.notes || null,
           userId: ctx.session.user.id,
         },
       });
