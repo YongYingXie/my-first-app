@@ -14,8 +14,7 @@ import {
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useState } from 'react';
-import MarkdownEditor from '~/components/markdown-editor';
-import MarkdownRenderer from '~/components/markdown-renderer';
+import MilkdownUnifiedEditor, { MilkdownRenderer } from '~/components/milkdown-unified-editor';
 import { Badge } from '~/components/ui/badge';
 import { Button } from '~/components/ui/button';
 import { Card } from '~/components/ui/card';
@@ -78,19 +77,19 @@ export default function Memo() {
       id: 'today',
       name: '今天',
       icon: Calendar,
-      count: tasks.filter((t) => t.dueDate && isToday(t.dueDate)).length,
+      count: tasks.filter((t: any) => t.dueDate && isToday(t.dueDate)).length,
     },
     {
       id: 'flagged',
       name: '已标记',
       icon: Flag,
-      count: tasks.filter((t) => t.flagged).length,
+      count: tasks.filter((t: any) => t.flagged).length,
     },
     {
       id: 'completed',
       name: '已完成',
       icon: Check,
-      count: tasks.filter((t) => t.completed).length,
+      count: tasks.filter((t: any) => t.completed).length,
     },
   ];
 
@@ -305,7 +304,7 @@ export default function Memo() {
     }
   };
 
-  const filteredTasks = tasks.filter((task) => {
+  const filteredTasks = tasks.filter((task: any) => {
     // 首先按搜索关键词过滤
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -330,7 +329,9 @@ export default function Memo() {
 
     // 如果完成状态相同，按优先级排序：高 > 中 > 低
     const priorityOrder = { HIGH: 3, MEDIUM: 2, LOW: 1 };
-    const priorityDiff = priorityOrder[b.priority] - priorityOrder[a.priority];
+    const priorityDiff =
+      priorityOrder[b.priority as keyof typeof priorityOrder] -
+      priorityOrder[a.priority as keyof typeof priorityOrder];
 
     if (priorityDiff !== 0) {
       return priorityDiff; // 优先级不同，按优先级排序
@@ -496,11 +497,14 @@ export default function Memo() {
 
                   {/* Markdown编辑器 */}
                   <div className="mb-3">
-                    <MarkdownEditor
+                    <MilkdownUnifiedEditor
                       value={newTaskNotes}
                       onChange={setNewTaskNotes}
                       placeholder="添加任务备注（支持Markdown格式）..."
                       label="任务备注"
+                      compact={true}
+                      wysiwyg={true}
+                      showToolbar={true}
                     />
                   </div>
 
@@ -742,11 +746,14 @@ export default function Memo() {
                           <div className="mt-2">
                             {editingTaskId === task.id && editingType === 'notes' ? (
                               <div className="space-y-2">
-                                <MarkdownEditor
+                                <MilkdownUnifiedEditor
                                   value={editingNotes}
                                   onChange={setEditingNotes}
                                   placeholder="编辑任务备注..."
                                   label="编辑备注"
+                                  compact={true}
+                                  wysiwyg={true}
+                                  showToolbar={true}
                                 />
                                 <div className="flex gap-2">
                                   <Button
@@ -774,7 +781,7 @@ export default function Memo() {
                             ) : (
                               <div className="group relative">
                                 <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded border">
-                                  <MarkdownRenderer content={task.notes} />
+                                  <MilkdownRenderer content={task.notes} />
                                 </div>
                                 <Button
                                   type="button"
